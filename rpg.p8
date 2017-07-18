@@ -4,6 +4,10 @@ __lua__
 -- pico-8 rpg
 -- by sfabian
 
+function debug()
+    sfx(00)
+end
+
 function _init()
     state = overworld:new()
 end
@@ -19,22 +23,43 @@ end
 
 function get_input()
     if btn(0) then
-        return "l"
+        return dir.l
     elseif btn(1) then
-        return "r"
+        return dir.r
     elseif btn(2) then
-        return "u"
+        return dir.u
     elseif btn(3) then
-        return "d"
+        return dir.d
     elseif btn(4) then
-        return "z"
+        return button.z
     elseif btn(5) then
-        return "x"
+        return button.z
     end
+    return nil
+end
+
+dir = {
+    l = 0,
+    r = 1,
+    u = 2,
+    d = 3
+}
+
+button = {
+    z = 4,
+    x = 5
+}
+
+function is_dir(input)
+    return input == dir.l
+        or input == dir.r
+        or input == dir.u
+        or input == dir.d
 end
 
 function inherits_from(super_class)
-    new_class = {}
+    local new_class = {}
+    new_class.super = super_class
     setmetatable(new_class, { __index = super_class})
     return new_class
 end
@@ -79,6 +104,7 @@ end
 
 function overworld:update()
     input = get_input()
+    self.player:update(input)
 end
 
 function overworld:draw()
@@ -94,6 +120,12 @@ function actor:new(o)
     return o
 end
 
+function actor:update()
+    if self.moving then
+        self:move()
+    end
+end
+
 function actor:draw()
     palt(col.black, false)
     palt(self.transparent_color, true)
@@ -102,13 +134,32 @@ function actor:draw()
     palt(col.black, true)
 end
 
+function actor:start_moving(dir)
+    self.moving = true
+    self.dir = dir
+end
+
+function actor:move()
+    if self.dir == dir.u then
+        self.y -= self.speed
+    elseif self.dir == dir.d then
+        self.y += self.speed
+    elseif self.dir == dir.r then
+        self.x += self.speed
+    elseif self.dir == dir.l then
+        self.x -= self.speed
+    end
+end
+
 -- class player
 player = inherits_from(actor)
 function player:new(o)
     o = o or {}
     setmetatable(o, self)
     self.__index = self
-    o:init()
+    if o.init then
+        o:init()
+    end
     return o
 end
 
@@ -116,9 +167,18 @@ function player:init()
     self.sprite = sprs_player["d"][1]
     self.x = 3
     self.y = 3
+    self.speed = 1
     self.transparent_color = col.brown
 end
 
+function player:update(input)
+    if input and is_dir(input) then
+        self:start_moving(input)
+    end
+    self.super.update(self)
+end
+
+-- player sprites
 sprs_player = {
     d = {001, 002, 001, 003},
     u = {017, 018, 017, 019},
@@ -339,7 +399,7 @@ __map__
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
-000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000100001e0501e0501e0501d0501d0501d0501c0501c0501b0501b05019050190500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
