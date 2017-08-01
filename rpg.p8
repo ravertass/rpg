@@ -4,6 +4,10 @@ __lua__
 -- pico-8 rpg
 -- by sfabian
 
+flags = {
+    wall = 0
+}
+
 function debug()
     sfx(00)
 end
@@ -135,13 +139,39 @@ function actor:init()
     self.height = 1
     self.mirror = false
     self.dir = dir.d
-    self.grid_size = 8
+    self.grid_size = 4
 end
 
 function actor:update()
-    if self.moving then
+    if self.moving and self:can_move() then
         self:move()
+    else
+        self.animation_count = 0
     end
+end
+
+function actor:can_move()
+    if self.dir == dir.u then
+        return not is_wall(self.x,   self.y+3.5)
+           and not is_wall(self.x+7, self.y+3.5)
+               and self.y > 0
+    elseif self.dir == dir.d then
+        return not is_wall(self.x,   self.y+8)
+           and not is_wall(self.x+7, self.y+8)
+               and self.y < 1016
+    elseif self.dir == dir.r then
+        return not is_wall(self.x+8, self.y+4)
+           and not is_wall(self.x+8, self.y+7)
+               and self.x < 1016
+    elseif self.dir == dir.l then
+        return not is_wall(self.x-0.5, self.y+4)
+           and not is_wall(self.x-0.5, self.y+7)
+               and self.x > 0
+    end
+end
+
+function is_wall(x, y)
+    return fget(mget(abs(x/8), abs(y/8)), flags.wall) == true
 end
 
 animation_speed = 0.2
@@ -232,6 +262,7 @@ function player:init(x, y)
 end
 
 function player:update(input)
+    --self:debug_pos()
     if input and is_dir(input) and self:at_grid_point() then
         self:start_moving(input)
     elseif (not input or not is_dir(input)) and self:at_grid_point() then
@@ -239,6 +270,12 @@ function player:update(input)
     end
 
     self.super.update(self)
+end
+
+function player:debug_pos()
+    print(self.x,74,10,10)
+    print(self.y,74,20,10)
+    flip()
 end
 
 -- player sprites
@@ -293,10 +330,11 @@ end
 
 function screen:should_transition()
     local player = self.player
-    return player.dir == dir.r and player.x >= self.x + 60
+    return not self.moving
+      and (player.dir == dir.r and player.x >= self.x + 60
         or player.dir == dir.l and player.x <= self.x - 4
         or player.dir == dir.u and player.y <= self.y - 4
-        or player.dir == dir.d and player.y >= self.y + 60
+        or player.dir == dir.d and player.y >= self.y + 60)
 end
 
 function screen:at_grid_point()
@@ -498,7 +536,7 @@ __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 
 __gff__
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001010101010100000000000000000000010101010101000000000000000000000101010101010000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 5a5a5a5a6a6a6a6a6a6a6a6a6a6a6a6a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
