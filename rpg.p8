@@ -104,15 +104,19 @@ function overworld:new(world_state)
 end
 
 function overworld:init()
-    self.player = player:new()
+    self.player = player:new(24, 24)
+    self.screen = screen:new(0, 0, self.player)
 end
 
 function overworld:update()
     input = get_input()
     self.player:update(input)
+    self.screen:update()
 end
 
 function overworld:draw()
+    self.screen:draw()
+    map(0, 0, 0, 0, 128, 128)
     self.player:draw()
 end
 
@@ -131,6 +135,7 @@ function actor:init()
     self.height = 1
     self.mirror = false
     self.dir = dir.d
+    self.grid_size = 8
 end
 
 function actor:update()
@@ -165,9 +170,8 @@ function actor:move()
     end
 end
 
-grid_size = 8
 function actor:at_grid_point()
-    return self.x % grid_size == 0 and self.y % grid_size == 0
+    return self.x % self.grid_size == 0 and self.y % self.grid_size == 0
 end
 
 function actor:stop_moving()
@@ -208,20 +212,18 @@ end
 
 -- class player
 player = inherits_from(actor)
-function player:new(o)
+function player:new(x, y, o)
     o = o or {}
     setmetatable(o, self)
     self.__index = self
-    if o.init then
-        o:init()
-    end
+    o:init(x, y)
     return o
 end
 
-function player:init()
+function player:init(x, y)
     self.sprite = sprs_player["d"][1]
-    self.x = 8
-    self.y = 8
+    self.x = x
+    self.y = y
     self.speed = 0.5
     self.transparent_color = col.brown
     self.sprites = sprs_player
@@ -245,6 +247,77 @@ sprs_player = {
     u = {017, 018, 017, 019},
     s = {033, 034, 033, 035}
 }
+
+-- class screen
+screen = {}
+function screen:new(x, y, player, o)
+    o = o or {}
+    setmetatable(o, self)
+    self.__index = self
+    o:init(x, y, player)
+    return o
+end
+
+function screen:init(x, y, player)
+    self.x = x
+    self.y = y
+    self.player = player
+    self.speed = 4
+    self.dir = nil
+    self.moving = false
+    self.grid_size = 64
+end
+
+function screen:start_moving(direction)
+    self.dir = direction
+    self.moving = true
+end
+
+function screen:stop_moving()
+    self.moving = false
+end
+
+function screen:update()
+    if self:should_transition() then
+        self:start_moving(self.player.dir)
+    end
+
+    if self.moving then
+        self:move()
+    end
+
+    if self:at_grid_point() then
+        self:stop_moving()
+    end
+end
+
+function screen:should_transition()
+    local player = self.player
+    return player.dir == dir.r and player.x >= self.x + 60
+        or player.dir == dir.l and player.x <= self.x - 4
+        or player.dir == dir.u and player.y <= self.y - 4
+        or player.dir == dir.d and player.y >= self.y + 60
+end
+
+function screen:at_grid_point()
+    return self.x % self.grid_size == 0 and self.y % self.grid_size == 0
+end
+
+function screen:move()
+    if self.dir == dir.u then
+        self.y -= self.speed
+    elseif self.dir == dir.d then
+        self.y += self.speed
+    elseif self.dir == dir.r then
+        self.x += self.speed
+    elseif self.dir == dir.l then
+        self.x -= self.speed
+    end
+end
+
+function screen:draw()
+    camera(self.x, self.y)
+end
 
 --------------------
 ---- state menu ----
