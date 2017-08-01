@@ -9,7 +9,12 @@ function debug()
 end
 
 function _init()
+    run_in_64x64()
     state = overworld:new()
+end
+
+function run_in_64x64()
+    poke(0x5f2c,3)
 end
 
 function _update60()
@@ -42,7 +47,7 @@ dir = {
     l = 0,
     r = 1,
     u = 2,
-    d = 3
+    d = 3,
 }
 
 button = {
@@ -120,18 +125,25 @@ function actor:new(o)
     return o
 end
 
+function actor:init()
+    self.animation_count = 0
+    self.width = 1
+    self.height = 1
+    self.mirror = false
+    self.dir = dir.d
+end
+
 function actor:update()
     if self.moving then
         self:move()
     end
 end
 
-function actor:draw()
-    palt(col.black, false)
-    palt(self.transparent_color, true)
-    spr(self.sprite, self.x, self.y)
-    palt(self.transparent_color, false)
-    palt(col.black, true)
+animation_speed = 0.2
+max_animation_count = 4
+function actor:inc_animation_count()
+    self.animation_count = (self.animation_count + animation_speed)
+                           % max_animation_count
 end
 
 function actor:start_moving(dir)
@@ -140,6 +152,8 @@ function actor:start_moving(dir)
 end
 
 function actor:move()
+    self:inc_animation_count()
+
     if self.dir == dir.u then
         self.y -= self.speed
     elseif self.dir == dir.d then
@@ -149,6 +163,47 @@ function actor:move()
     elseif self.dir == dir.l then
         self.x -= self.speed
     end
+end
+
+grid_size = 8
+function actor:at_grid_point()
+    return self.x % grid_size == 0 and self.y % grid_size == 0
+end
+
+function actor:stop_moving()
+    self.moving = false
+    self.animation_count = 0
+end
+
+function actor:draw()
+    self:set_sprite()
+    self:draw_sprite()
+end
+
+function actor:set_sprite()
+    local direction
+    local mirror = false
+    if self.dir == dir.l then
+        direction = "s"
+        mirror = true
+    elseif self.dir == dir.r then
+        direction = "s"
+    elseif self.dir == dir.u then
+        direction = "u"
+    elseif self.dir == dir.d then
+        direction = "d"
+    end
+
+    self.sprite = self.sprites[direction][flr(self.animation_count+1)]
+    self.mirror = mirror
+end
+
+function actor:draw_sprite()
+    palt(col.black, false)
+    palt(self.transparent_color, true)
+    spr(self.sprite, self.x, self.y, self.width, self.height, self.mirror)
+    palt(self.transparent_color, false)
+    palt(col.black, true)
 end
 
 -- class player
@@ -165,16 +220,22 @@ end
 
 function player:init()
     self.sprite = sprs_player["d"][1]
-    self.x = 3
-    self.y = 3
-    self.speed = 1
+    self.x = 8
+    self.y = 8
+    self.speed = 0.5
     self.transparent_color = col.brown
+    self.sprites = sprs_player
+
+    self.super.init(self)
 end
 
 function player:update(input)
-    if input and is_dir(input) then
+    if input and is_dir(input) and self:at_grid_point() then
         self:start_moving(input)
+    elseif (not input or not is_dir(input)) and self:at_grid_point() then
+        self:stop_moving()
     end
+
     self.super.update(self)
 end
 
